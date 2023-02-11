@@ -76,35 +76,94 @@ def show_dU():
     # Read dU
     dU = pd.read_csv(f_dU, sep="\t", header=0)
 
+    pts_ns = pd.Series(pd.concat([dU.iloc[:, 0],
+                                   dU.iloc[:, 1]],
+                                  ignore_index=True).sort_values().unique())
+    
+#    # Draw arrow
+#
+#        x1 = float(x[w_name == p[len(p)-1]])
+#        y1 = float(y[w_name == p[len(p)-1]])
+#        x2 = float(x[w_name == p[0]])
+#        y2 = float(y[w_name == p[0]])
+#        
+#        ax.annotate('',
+#                    xy=((pd.Series(my_x, dtype="float64").mean() + x2)/2,
+#                        (pd.Series(my_y, dtype="float64").mean() + y2)/2),
+#                    xytext=((pd.Series(my_x, dtype="float64").mean() + x1)/2,
+#                            (pd.Series(my_y, dtype="float64").mean() + y1)/2),
+#                    arrowprops=dict(facecolor='steelblue',
+#                                    shrink=0.05),
+#                    zorder = -1)
+
+    
     # Write dUs on graph
     dU_x = pd.Series(dtype='float64')
     dU_y = pd.Series(dtype='float64')
+    pt_1i = pd.Series(dtype='int64')
+    pt_2i = pd.Series(dtype='int64')
     for _, dU_vect in dU.iterrows():
+        
         x1 = float(x[w_name == dU_vect[0]])
         y1 = float(y[w_name == dU_vect[0]])
         x2 = float(x[w_name == dU_vect[1]])
         y2 = float(y[w_name == dU_vect[1]])
-        ax.plot([x1, x2],
-                [y1, y2],
-                zorder=0,
-                color="black")
+        
+        if pts_ns[pts_ns == dU_vect[0]].index[0] > pts_ns[pts_ns == dU_vect[1]].index[0]:
+            temp_1i = pts_ns[pts_ns == dU_vect[1]].index[0]
+            temp_2i = pts_ns[pts_ns == dU_vect[0]].index[0]
+        else:
+            temp_1i = pts_ns[pts_ns == dU_vect[0]].index[0]
+            temp_2i = pts_ns[pts_ns == dU_vect[1]].index[0]
+        
+        if len(pt_1i) > 0:
+            if sum((pt_1i == temp_1i) & (pt_2i == temp_2i)) > 0:
+                pt_1i = pd.concat([pt_1i, pd.Series(temp_1i)],ignore_index=True)
+                pt_2i = pd.concat([pt_2i, pd.Series(temp_2i)],ignore_index=True)
+            else:
+                pt_1i = pd.concat([pt_1i, pd.Series(temp_1i)],ignore_index=True)
+                pt_2i = pd.concat([pt_2i, pd.Series(temp_2i)],ignore_index=True)
+                
+                ax.annotate('',
+                            xy=(x2,y2),
+                            xytext=(x1,y1),
+                            arrowprops=dict(facecolor='black',
+                                            shrink=0.03),
+                            zorder = -1)
+        else:
+            pt_1i = pd.concat([pt_1i, pd.Series(temp_1i)],ignore_index=True)
+            pt_2i = pd.concat([pt_2i, pd.Series(temp_2i)],ignore_index=True)
+            
+            ax.annotate('',
+                        xy=(x2,y2),
+                        xytext=(x1,y1),
+                        arrowprops=dict(facecolor='black',
+                                        shrink=0.03),
+                        zorder = -1)
+            
         x_mean = (x1 + x2) / 2
         y_mean = (y1 + y2) / 2
         dU_x = pd.concat([dU_x, pd.Series(x_mean)],ignore_index=True)
         dU_y = pd.concat([dU_y, pd.Series(y_mean)],ignore_index=True)
-        ax.scatter(x = x2 - (x2 - x1)/3,
-                y = y2 - (y2 - y1)/3 - sum((dU_x == x_mean) & (dU_y == y_mean))*40 + 60,
-                s = 20,
-                zorder=1,
-                color = "green")
-        text = ax.text(x_mean,
-                    y_mean - sum((dU_x == x_mean) & (dU_y == y_mean))*40 + 60,
-                    dU_vect[2],
-                    ha='center',
-                    va='center',
-                    color='brown',
-                    size=14,
-                    weight=1000)
+        
+        if pts_ns[pts_ns == dU_vect[0]].index[0] > pts_ns[pts_ns == dU_vect[1]].index[0]:
+            text = ax.text(x_mean,
+                        y_mean - sum((dU_x == x_mean) & (dU_y == y_mean))*40 + 60,
+                        -dU_vect[2],
+                        ha='center',
+                        va='center',
+                        color='brown',
+                        size=14,
+                        weight=1000)
+        else:
+            text = ax.text(x_mean,
+                        y_mean - sum((dU_x == x_mean) & (dU_y == y_mean))*40 + 60,
+                        dU_vect[2],
+                        ha='center',
+                        va='center',
+                        color='brown',
+                        size=14,
+                        weight=1000)
         text.set_path_effects([path_effects.Stroke(linewidth=2, foreground='white'),
                             path_effects.Normal()])
     canvas.draw()
@@ -209,6 +268,15 @@ def load_pols():
         init_dir = os.path.dirname(filename)
         f_pols = filename
         show_contour_error()
+        
+def reload():
+    show_points()
+
+    show_dU()
+
+    show_contour_error()
+
+    canvas.draw()
 
 # ToDo Add Buttons for loading data
 but1_x = 5
@@ -234,6 +302,13 @@ but_load_dU = tk.Button(panel, text="Загрузить контуры",
                             command=load_pols)
 but_load_dU.place(x=but1_x,
                   y=but1_y + 2*(but_h + but_dy),
+                  width=panel_w - 2*but1_x,
+                  height=but_h)
+
+but_reload = tk.Button(panel, text="Перечитать файлы",
+                            command=reload)
+but_reload.place(x=but1_x,
+                  y=but1_y + 3*(but_h + but_dy),
                   width=panel_w - 2*but1_x,
                   height=but_h)
 
